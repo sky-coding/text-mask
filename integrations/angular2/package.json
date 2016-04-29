@@ -1,7 +1,7 @@
 {
-  "name": "@msafi/react-text-mask",
-  "version": "0.3.8",
-  "description": "React input component that accepts mask pattern",
+  "name": "@msafi/angular2-text-mask",
+  "version": "0.0.1",
+  "description": "Angular 2 directive for input text masking",
   "main": "dist/textMask.js",
   "author": "M.K. Safi <msafi@msafi.com>",
   "license": "CC0-1.0",
@@ -10,11 +10,13 @@
   },
   "homepage": "https://github.com/msafi/text-mask/integrations/react/#readme",
   "peerDependencies": {
-    "react": "^0.14.6"
+    "angular2": "^2.0.0-beta.13"
   },
   "keywords": [
-    "react",
-    "react-component",
+    "angular2",
+    "ng2",
+    "angular2 component",
+    "angular2 directive",
     "text mask",
     "input mask",
     "string mask",
