@@ -6,18 +6,33 @@ import {
   safeSetSelection
 } from '../../core/src/index.js'
 
+const getConformedMaskResults = (userInput, mask, guide, previousConformedInput) => {
+  return conformToMask(userInput, mask, (guide === false) ? {guide, previousConformedInput} : {})
+}
+
+const getComponentState = ({ mask, guide, value } = {}) => {
+  const { output: conformedInput } = getConformedMaskResults(value, mask, guide, '')
+  const placeholder = convertMaskToPlaceholder(mask)
+  const finalConformedInput = (
+      conformedInput === placeholder
+    ) ? '' : conformedInput
+
+  return {
+    conformedInput: finalConformedInput,
+    adjustedCaretPosition: 0,
+    placeholder
+  }
+}
+
+
 export const MaskedInput = React.createClass({
   propTypes: {
     mask: PropTypes.string.isRequired,
     guide: PropTypes.bool
   },
 
-  getInitialState({mask = this.props.mask} = {}) {
-    return {
-      conformedInput: '',
-      adjustedCaretPosition: 0,
-      placeholder: convertMaskToPlaceholder(mask)
-    }
+  getInitialState() {
+    return getComponentState(this.props)
   },
 
   componentWillReceiveProps(nextProps) {
@@ -25,7 +40,7 @@ export const MaskedInput = React.createClass({
       nextProps.mask !== this.props.mask ||
       nextProps.guide !== this.props.guide
     ) {
-      this.setState(this.getInitialState({mask: nextProps.mask}))
+      this.setState(getComponentState(nextProps))
     }
   },
 
@@ -44,7 +59,7 @@ export const MaskedInput = React.createClass({
         onChange={onChange}
         value={conformedInput}
         placeholder={placeholder}
-        ref="inputElement"
+        ref='inputElement'
       />
     )
   },
@@ -56,10 +71,11 @@ export const MaskedInput = React.createClass({
       state: {placeholder, conformedInput: previousConformedInput}
     } = this
 
-    const conformToMaskResults = conformToMask(
+    const conformToMaskResults = getConformedMaskResults(
       userInput,
       mask,
-      (guide === false) ? {guide, previousConformedInput} : {}
+      guide,
+      previousConformedInput
     )
     const {output: conformedInput} = conformToMaskResults
 
