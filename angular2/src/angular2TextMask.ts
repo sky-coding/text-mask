@@ -1,111 +1,46 @@
 ///<reference path="../typings/index.d.ts"/>
 
-import {
-  processComponentChanges,
-  safeSetSelection,
-  getComponentInitialState
-} from '../../core/src/componentHelpers'
-
 import {Directive, ElementRef, Input} from '@angular/core'
-import {NgModel} from '@angular/common'
+import {NgControl} from '@angular/common'
+import createComponent from '../../core/src/createComponent'
 
 @Directive({
-  selector: 'input[textMask][ngModel]',
+  selector: 'input[textMask]',
   host: {
-    '(input)': 'onInput($event.target.value)',
-    '(keyup)': 'updateModel($event.target.value)'
+    '(input)': 'onInput()'
   }
 })
 export default class MaskedInputDirective {
-  private conformedInput:string
-  private componentPlaceholder:string
   private inputElement:HTMLInputElement
+  public control: any
 
-  @Input('textMask') textMaskConfig = {mask: '', guide: true, placeholderCharacter: undefined}
-
-  constructor(el:ElementRef, public model:NgModel) {
-    this.inputElement = el.nativeElement
+  @Input('textMask') textMaskConfig = {
+    mask: '',
+    guide: true,
+    placeholderCharacter: undefined,
+    validator: undefined
   }
 
-  setComponentInitialState({inputValue, mask, guide, placeholderChar}) {
-    const {conformedInput, componentPlaceholder} = getComponentInitialState({
-      inputValue,
+  constructor(inputElement: ElementRef, private ngControl: NgControl) {
+    this.inputElement = inputElement.nativeElement
+  }
+
+  ngOnInit() {
+    const {mask, guide, placeholderCharacter, validator} = this.textMaskConfig
+
+    this.control = createComponent({
+      inputElement: this.inputElement,
       mask,
       guide,
-      placeholderChar
+      placeholderCharacter,
+      validator
     })
-
-    this.conformedInput = conformedInput
-    this.componentPlaceholder = componentPlaceholder
-
-    this.inputElement.placeholder = (this.inputElement.placeholder !== undefined) ?
-      this.inputElement.placeholder :
-      this.componentPlaceholder
-
-    this.model.valueAccessor.writeValue(conformedInput)
-    this.updateModel(conformedInput)
   }
 
-  ngOnInit({mask, guide, placeholderCharacter: placeholderChar} = this.textMaskConfig) {
-    this.setComponentInitialState({inputValue: this.model.viewModel, mask, guide, placeholderChar})
-  }
-
-  ngOnChanges({textMaskConfig}) {
-    const {
-      currentValue: {
-        mask: currentMask,
-        guide: currentGuide,
-        placeholderCharacter: currentPlaceholderChar
-      },
-
-      previousValue: {
-        mask: previousMask,
-        guide: previousGuide,
-        placeholderCharacter: previousPlaceholderChar
-      },
-    } = textMaskConfig
-
-    if (
-      currentMask !== previousMask ||
-      currentGuide !== previousGuide ||
-      currentPlaceholderChar !== previousPlaceholderChar
-    ) {
-      this.setComponentInitialState({
-        inputValue: this.model.viewModel,
-        mask: currentMask,
-        guide: currentGuide,
-        placeholderChar: currentPlaceholderChar
-      })
-    }
-  }
-
-  onInput(userInput = '') {
-    const {
-      textMaskConfig: {mask, guide, placeholderCharacter: placeholderChar},
-      componentPlaceholder: placeholder,
-      conformedInput: previousConformedInput
-    } = this
-    const {adjustedCaretPosition, conformedInput} = processComponentChanges({
-      userInput,
-      placeholder,
-      previousConformedInput,
-      mask,
-      guide,
-      placeholderChar,
-      currentCaretPosition: this.inputElement.selectionStart
-    })
-
-    this.conformedInput = conformedInput
-    this.model.valueAccessor.writeValue(conformedInput)
-    safeSetSelection(this.inputElement, adjustedCaretPosition)
-  }
-
-  updateModel(conformedUserInput) {
-    this.model.viewToModelUpdate(conformedUserInput)
+  onInput() {
+    this.control.update()
+    this.ngControl.viewToModelUpdate(this.inputElement.value)
   }
 }
 
 export {MaskedInputDirective as Directive}
-
-export {default as conformToMask} from '../../core/src/conformToMask'
-export {convertMaskToPlaceholder} from '../../core/src/utilities'
