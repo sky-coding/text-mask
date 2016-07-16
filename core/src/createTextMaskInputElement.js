@@ -9,69 +9,78 @@ export default function createTextMaskInputElement({
   validator,
   placeholderChar,
   onAccept,
-  onReject
+  onReject,
+  keepCharPositions = false
 }) {
-  const state = {previousConformedInput: ''}
+  const state = {previousConformedValue: ''}
 
-  let componentPlaceholder = ''
+  let placeholder = ''
   let mask
 
   if (isString(providedMask)) {
-    componentPlaceholder = convertMaskToPlaceholder(providedMask, placeholderChar)
+    placeholder = convertMaskToPlaceholder(providedMask, placeholderChar)
   }
 
   if (inputElement.placeholder === '') {
-    inputElement.setAttribute('placeholder', componentPlaceholder)
+    inputElement.setAttribute('placeholder', placeholder)
   }
 
   return {
     state,
 
-    update(valueToConform = inputElement.value) {
-      if (valueToConform === state.previousConformedInput) { return }
+    update(rawValue = inputElement.value) {
+      if (rawValue === state.previousConformedValue) { return }
+
+      const safeRawValue = getSafeRawValue(rawValue)
 
       if (typeof providedMask === 'function') {
-        mask = providedMask(valueToConform)
+        mask = providedMask(safeRawValue)
 
-        componentPlaceholder = convertMaskToPlaceholder(mask, placeholderChar)
+        placeholder = convertMaskToPlaceholder(mask, placeholderChar)
       } else {
         mask = providedMask
       }
 
       const {selectionStart: currentCaretPosition} = inputElement
-      const {previousConformedInput} = state
-      const safeValueToConform = getSafeInputValue(valueToConform)
-      const conformToMaskConfig = {previousConformedInput, guide, placeholderChar, validator}
-      const conformToMaskResults = conformToMask(safeValueToConform, mask, conformToMaskConfig)
-      const {output: outputOfConformToMask} = conformToMaskResults
+      const {previousConformedValue} = state
+      const conformToMaskConfig = {
+        previousConformedValue,
+        guide,
+        placeholderChar,
+        validator,
+        placeholder,
+        currentCaretPosition,
+        keepCharPositions
+      }
+      const {conformedValue, meta: {someCharsRejected}} = conformToMask(safeRawValue, mask, conformToMaskConfig)
       const adjustedCaretPosition = adjustCaretPosition({
-        previousConformedInput,
-        conformToMaskResults,
+        previousConformedValue,
+        conformedValue,
+        placeholder,
+        rawValue: safeRawValue,
         currentCaretPosition,
         placeholderChar
       })
-      const valueShouldBeEmpty = (
-        outputOfConformToMask === componentPlaceholder && adjustedCaretPosition === 0
-      )
-      const conformedInput = (valueShouldBeEmpty) ? '' : outputOfConformToMask
-      const isDeletion = safeValueToConform.length < previousConformedInput.length
+      const inputValueShouldBeEmpty = conformedValue === placeholder && adjustedCaretPosition === 0
+      const inputElementValue = (inputValueShouldBeEmpty) ? '' : conformedValue
+      const isDeletion = safeRawValue.length < previousConformedValue.length
 
-      if (typeof onAccept === 'function' && conformedInput !== previousConformedInput) {
+      inputElement.value = inputElementValue
+      state.previousConformedValue = inputElementValue
+      safeSetSelection(inputElement, adjustedCaretPosition)
+
+      if (typeof onAccept === 'function' && inputElementValue !== previousConformedValue) {
         onAccept()
       }
 
       if (
         typeof onReject === 'function' &&
-        conformedInput === previousConformedInput &&
+        someCharsRejected &&
         isDeletion === false &&
         currentCaretPosition <= mask.length
       ) {
-        onReject()
+        onReject({rawValue: safeRawValue})
       }
-
-      inputElement.value = conformedInput
-      state.previousConformedInput = conformedInput
-      safeSetSelection(inputElement, adjustedCaretPosition)
     }
   }
 }
@@ -82,7 +91,7 @@ function safeSetSelection(element, selectionPosition) {
   }
 }
 
-function getSafeInputValue(inputValue) {
+function getSafeRawValue(inputValue) {
   if (isString(inputValue)) {
     return inputValue
   } else if (isNumber(inputValue)) {
